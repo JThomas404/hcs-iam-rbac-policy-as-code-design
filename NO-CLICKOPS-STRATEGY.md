@@ -1,7 +1,7 @@
 # No-ClickOps Enforcement Strategy
 
 > **Companion to:** [`RBAC-PIPELINE-DESIGN.md`](RBAC-PIPELINE-DESIGN.md)
-> **Goal:** Reach a state where **nothing** is created, modified, or deleted via the HCS console or ADO UI \u2014 every change is a reviewed, audited git commit applied by a pipeline SPN.
+> **Goal:** Reach a state where **nothing** is created, modified, or deleted via the HCS console or ADO UI every change is a reviewed, audited git commit applied by a pipeline SPN.
 
 ## Phased migration
 
