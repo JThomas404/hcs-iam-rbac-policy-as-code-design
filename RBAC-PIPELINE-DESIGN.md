@@ -37,7 +37,7 @@ _does not_ proceed. No silent fallbacks.
 Company AD is owned by the Company IAM team. This pipeline **never** creates,
 renames, deletes, or modifies AD users or AD groups. It only **references**
 AD group names that already exist. If a referenced AD group is missing, the
-pipeline fails the plan — it does not attempt to create one.
+pipeline fails the plan, it does not attempt to create one.
 
 ---
 
