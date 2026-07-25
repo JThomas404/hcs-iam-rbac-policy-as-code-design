@@ -49,7 +49,7 @@ Implemented in dev:
 - application user onboarding
 - custom role definitions
 - policy group lifecycle
-- business authorization mappings
+- business authorisation mappings
 
 ### PAC Responsibilities
 
@@ -65,7 +65,7 @@ Implemented in dev:
 
 ## Phases
 
-### Phase 1: Stabilize Current Dev Baseline
+### Phase 1: Stabilise Current Dev Baseline
 
 Goals:
 - keep current dev implementation consistent and deterministic
@@ -74,7 +74,7 @@ Goals:
 Tasks:
 1. Keep `user_catalog` map keys stable and document key naming rules.
 2. Import built-in groups and roles that are used repeatedly, starting with `VDC Admin`.
-3. Standardize use of `existing_group_id` for built-in groups.
+3. Standardise use of `existing_group_id` for built-in groups.
 4. Confirm all dev PAC outputs are stable and human-readable.
 5. Confirm 2 to 3 consecutive clean PAC runs in dev.
 
@@ -101,7 +101,7 @@ Tasks:
    - imported assignments
    - managed versus imported versus lookup status
 2. Add descriptive comments and descriptions for each group and role mapping.
-3. Normalize current HCS exports into Terraform-ready inventory structures.
+3. Normalise current HCS exports into Terraform-ready inventory structures.
 4. Decide resource-by-resource whether each object should be:
    - imported into state
    - managed directly
@@ -128,7 +128,7 @@ Tasks:
    - roles
    - group-role assignments
    - access policies
-4. Produce both raw and normalized JSON outputs.
+4. Produce both raw and normalised JSON outputs.
 5. Store timestamped exports for traceability.
 
 Recommended output structure:
@@ -138,13 +138,13 @@ Recommended output structure:
 - `raw/memberships.json`
 - `raw/group_role_assignments.json`
 - `raw/access_policies.json`
-- `normalized/inventory.json`
-- `normalized/users_by_group.json`
-- `normalized/groups_by_role.json`
+- `normalised/inventory.json`
+- `normalised/users_by_group.json`
+- `normalised/groups_by_role.json`
 
 Deliverables:
 - reproducible exporter script
-- initial normalized inventory snapshot
+- initial normalised inventory snapshot
 
 ### Phase 4: Onboard Existing HCS Users and Groups into Terraform
 
@@ -157,7 +157,7 @@ Tasks:
 2. Import existing built-in groups and built-in roles used by PAC.
 3. Import or map existing custom groups and assignments.
 4. Preserve console-only exceptions only where unavoidable and document them.
-5. Validate that imported state matches normalized exporter output.
+5. Validate that imported state matches normalised exporter output.
 
 Deliverables:
 - imported dev user inventory
@@ -167,7 +167,7 @@ Deliverables:
 ### Phase 5: Replace Broad Drift Check with RBAC and PAC Compliance Stage
 
 Goals:
-- validate identity and authorization correctness only
+- validate identity and authorisation correctness only
 - avoid broad infra drift noise when the objective is IAM and access compliance
 
 Tasks:
@@ -213,7 +213,7 @@ Goals:
 Tasks:
 1. Copy stack structure to next environment.
 2. Populate environment-specific IDs and imported built-in groups.
-3. Re-run exporter and normalized inventory process in that environment.
+3. Re-run exporter and normalised inventory process in that environment.
 4. Start in report-only compliance mode.
 5. Promote to enforcement only after clean baseline is confirmed.
 
