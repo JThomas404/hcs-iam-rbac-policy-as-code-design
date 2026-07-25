@@ -99,7 +99,7 @@ pipeline fails the plan, it does not attempt to create one.
 **Stacks:**
 
 1. `0-vdc-guardrails/0-dev/iam/` — **HCS IAM as code, using VDC primitives.** Manages:
-   - HCS local users (`hcs_vdc_user`) — **only** service accounts (`auth_type = MACHINE_USER`, `access_mode = programmatic`) and break-glass (`LOCAL_AUTH`, `console`). Human staff are `auth_type = SAML_AUTH` and authenticate via Company AD federation — we declare the user-stub but the IdP itself is **not** manageable in this provider (see Pushback #7).
+   - HCS local users (`hcs_vdc_user`) — **only** service accounts (`auth_type = MACHINE_USER`, `access_mode = programmatic`) and break-glass (`LOCAL_AUTH`, `console`). Human staff are `auth_type = SAML_AUTH` and authenticate via Company AD federation — we declare the user-stub but the IdP itself is **not** manageable in this provider.
    - VDC groups (`hcs_vdc_group`) — the federation target & role-assignment subject
    - Group membership (`hcs_vdc_group_membership`) — for local users; federated users are added by IdP mapping rules (out of TF scope)
    - Custom roles (`hcs_vdc_role`) — JSON policy documents; type `AX` (global services) or `XA` (regional services)
@@ -111,10 +111,6 @@ pipeline fails the plan, it does not attempt to create one.
    Manages project security, repo perms, branch policies, pipeline perms,
    variable groups, service connections, agent-pool perms. Uses the
    `microsoft/azuredevops` Terraform provider (separate from HCS).
-3. _(removed)_ `0-vdc-guardrails/0-dev/active-directory/` — was going to
-   create HCS groups mirroring AD. **No longer needed** because (a) AD is
-   external and (b) HCS-native group resources live in stack 1 above. The
-   empty folder should be **deleted** in Phase 1.
 
 ---
 
@@ -158,9 +154,6 @@ abs-role-{domain}-{verb}-{resource}
 ```
 
 Example: `abs-role-dbaas-read-rds`, `abs-role-dbaas-rotate-secrets`
-**Pushback #2:** Do **not** create a custom role until you have proven the
-built-in HCS role is insufficient. Document the gap in the PR description.
-Custom roles are the #1 source of accidental privilege creep.
 
 ---
 
@@ -307,10 +300,6 @@ provider "hcs" {
 This gives **short-lived** write tokens that expire automatically and are
 audit-trail-distinct from the base AK/SK — closer to AWS STS / Azure
 workload-identity behaviour. Cost: more moving parts in bootstrap.
-**Pushback #3 (HCS reality check):** HCS does **not** offer OIDC workload
-identity federation with Azure DevOps the way Azure does. The base credential
-you store in ADO will be an AK/SK pair regardless of whether you layer
-agency-assumption on top.
 
 This means you **must**:
 
@@ -401,7 +390,7 @@ fix it, and vice-versa.
 **Stage 3 — review gate**
 
 - Dev (now): branch protection — 1 reviewer required, CODEOWNERS on `rbac/`
-- Non-prod (later, pushback #1): + manual ADO approval, + CAB ticket field
+- Non-prod (later): + manual ADO approval, + CAB ticket field
 - Prod (later): + dual approval from security AND platform team
 
 **Stage 4 — apply** _(runs on `main` only; apply SPN)_
