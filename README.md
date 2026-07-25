@@ -102,7 +102,7 @@ infra-live/
         dev.auto.tfvars
 ```
 
-The dev implementation splits the original design's single `iam/` stack into two folders, `rbac/` and `policy-as-code/`, matching the ownership split recorded in the implementation plan: `rbac/` owns pipeline identity bootstrap, `policy-as-code/` owns authorisation. A `security-groups/` stack was added alongside them as a third guardrail. The Azure-DevOps-permissions-as-code stack (`ado-rbac/`) described in the design document remains at the design stage and does not yet exist on disk.
+The dev implementation splits the original design's single `iam/` stack into two folders, `rbac/` and `policy-as-code/`, matching the ownership split recorded in the implementation plan: `rbac/` owns pipeline identity bootstrap, `policy-as-code/` owns authorisation. A `security-groups/` stack was added alongside them as a third guardrail.
 
 ## Tasks and Implementation Steps
 
