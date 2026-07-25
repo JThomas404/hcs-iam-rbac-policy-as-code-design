@@ -159,9 +159,7 @@ Example: `abs-role-dbaas-read-rds`, `abs-role-dbaas-rotate-secrets`
 
 ## 5. Pipeline identity (least privilege)
 
-You asked for a recommendation. Here it is.
-
-**Use three distinct HCS service accounts**, not one. The HCS provider exposes
+**Use three distinct HCS service accounts**. The HCS provider exposes
 these as `hcs_vdc_user` (`auth_type = MACHINE_USER`, `access_mode = programmatic`),
 each issued an AK/SK pair and bound to a dedicated VDC group via
 `hcs_vdc_group_membership`:
@@ -192,7 +190,7 @@ scoping in ADO. Equally, an attacker who exfiltrates _any_ one SPN's
 AK/SK from a compromised CI runner gets the group's full permission
 union, not just that SPN's nominal scope.
 
-**Compensating controls (mandatory for this decision to hold).**
+**Compensating controls**
 
 1. **One variable group per stage.** `rbac-plan-dev` linked only to plan
    jobs; `rbac-apply-dev` linked only to apply jobs; `rbac-state-dev`
@@ -316,7 +314,7 @@ This means you **must**:
 
 ## 6. Repository layout
 
-Slot into the existing structure — do not invent new top-level folders:
+Slot into the existing structure:
 
 ```
 dbaas-infra-live/
@@ -349,7 +347,7 @@ dbaas-infra-live/
       ado-rbac-stage.yml              ← variant for ADO provider (different SPN, different state)
 ```
 
-**Mapping of the two pre-existing YAMLs (resolves v0.1 open question):**
+**Mapping of the two pre-existing YAMLs:**
 
 | File                           | Purpose                                                              | Drives stack      | Auth                       |
 | ------------------------------ | -------------------------------------------------------------------- | ----------------- | -------------------------- |
