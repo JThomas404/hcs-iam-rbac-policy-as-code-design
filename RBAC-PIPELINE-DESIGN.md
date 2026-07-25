@@ -5,27 +5,34 @@
 **P1 — Least privilege, by default.**
 Every identity (human, service, pipeline) starts with zero permissions. Access
 is granted only by explicit, reviewed change.
+
 **P2 — Identity is not authorisation.**
 Authentication (who you are, from AD) is separate from authorisation (what you
 can do, from HCS IAM). The pipeline only manages the _mapping_ between the two.
+
 **P3 — No standing privilege in production.**
 Human admin access to prod is time-bound (JIT) and break-glass-only. No user
 holds a permanent prod admin role. This is out of scope for dev, but the
 design must not block it later.
+
 **P4 — Everything as code, nothing in the console.**
 Console/click-ops changes are drift and must be detected & rejected. The
 pipeline is the only sanctioned write path to IAM.
+
 **P5 — Separation of duties.**
 The identity that _plans_ a change is not the same identity that _applies_ it.
 The reviewer of a PR is not the author. The pipeline that grants roles cannot
 modify its own role.
+
 **P6 — Auditable & reversible.**
 Every assignment traceable to: a git commit, a PR, an approver, a CAB/ticket
 reference (later), and a Terraform state object. Every change reversible by
 reverting the commit.
+
 **P7 — Fail closed.**
 If the pipeline can't authenticate, can't read state, or detects drift — it
 _does not_ proceed. No silent fallbacks.
+
 **P8 — Respect the identity boundary.**
 Company AD is owned by the Company IAM team. This pipeline **never** creates,
 renames, deletes, or modifies AD users or AD groups. It only **references**
