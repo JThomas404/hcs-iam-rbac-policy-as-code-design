@@ -30,9 +30,9 @@ This repository documents the design and phased implementation of an identity, r
 
 The work spans three related documents, each answering a different question:
 
-- [`RBAC-PIPELINE-DESIGN.md`](https://github.com/JThomas404/hcs-iam-rbac-policy-as-code/blob/main/RBAC-PIPELINE-DESIGN.md) answers **what the target architecture is**: a two-stack Terraform design covering HCS-native IAM (users, groups, custom roles, role assignments) and Azure DevOps permissions, built around a least-privilege, separation-of-duties pipeline identity model, grounded in verified capabilities and gaps of the actual HCS Terraform provider rather than assumptions carried over from AWS or Azure.
-- [`RBAC-PAC-IMPLEMENTATION-PLAN.md`](https://github.com/JThomas404/hcs-iam-rbac-policy-as-code/blob/main/RBAC-PAC-IMPLEMENTATION-PLAN.md) answers **where the implementation actually stands today**: a seven-phase plan tracking the current dev-environment baseline (three pipeline service accounts, a working policy-as-code catalogue) through to a compliance-enforcing, multi-environment rollout.
-- [`NO-CLICKOPS-STRATEGY.md`](https://github.com/JThomas404/hcs-iam-rbac-policy-as-code/blob/main/NO-CLICKOPS-STRATEGY.md) answers **how console write access gets eliminated without locking anyone out**: a six-phase, resource-class-by-resource-class migration from today's mixed console/pipeline access model to a state where every infrastructure change is a reviewed, audited git commit.
+- [`RBAC-PIPELINE-DESIGN.md`](https://github.com/JThomas404/hcs-iam-rbac-policy-as-code-design/blob/main/RBAC-PIPELINE-DESIGN.md) answers **what the target architecture is**: a two-stack Terraform design covering HCS-native IAM (users, groups, custom roles, role assignments) and Azure DevOps permissions, built around a least-privilege, separation-of-duties pipeline identity model, grounded in verified capabilities and gaps of the actual HCS Terraform provider rather than assumptions carried over from AWS or Azure.
+- [`RBAC-PAC-IMPLEMENTATION-PLAN.md`](https://github.com/JThomas404/hcs-iam-rbac-policy-as-code-design/blob/main/RBAC-PAC-IMPLEMENTATION-PLAN.md) answers **where the implementation actually stands today**: a seven-phase plan tracking the current dev-environment baseline (three pipeline service accounts, a working policy-as-code catalogue) through to a compliance-enforcing, multi-environment rollout.
+- [`NO-CLICKOPS-STRATEGY.md`](https://github.com/JThomas404/hcs-iam-rbac-policy-as-code-design/blob/main/NO-CLICKOPS-STRATEGY.md) answers **how console write access gets eliminated without locking anyone out**: a six-phase, resource-class-by-resource-class migration from today's mixed console/pipeline access model to a state where every infrastructure change is a reviewed, audited git commit.
 
 The central engineering problem this work addresses is not "write some Terraform for IAM" — it is that identity and access control changes are the highest-blast-radius category of infrastructure change that exists: a mistake can lock out the very people and pipelines needed to fix the mistake. Every design decision in this repository is built around that constraint.
 
@@ -125,10 +125,10 @@ The architecture opens with eight guiding principles, each treated as a non-nego
 
 Those principles are then tested against an explicit threat model covering eight concrete threats, from a compromised pipeline credential escalating to administrative access, through a developer approving their own access-granting pull request, to a pipeline being able to modify its own permissions. Each threat is paired with a specific mitigation already reflected in the design, for example:
 
-| Threat | Mitigation |
-|---|---|
-| A developer authors and approves their own access-granting change | Branch protection requiring a reviewer from a different team, enforced via CODEOWNERS on the IAM stack |
-| The pipeline's apply identity modifies its own permissions | The apply identity's custom role explicitly denies write actions targeting its own user or group, evaluated before any allow statement |
+| Threat                                                                    | Mitigation                                                                                                                                             |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A developer authors and approves their own access-granting change         | Branch protection requiring a reviewer from a different team, enforced via CODEOWNERS on the IAM stack                                                 |
+| The pipeline's apply identity modifies its own permissions                | The apply identity's custom role explicitly denies write actions targeting its own user or group, evaluated before any allow statement                 |
 | A change is made directly in the console rather than through the pipeline | A nightly scheduled `terraform plan` detects any state drift with no corresponding code change and raises an alert rather than silently reconciling it |
 
 ### Two-Stack Architecture: HCS IAM and Azure DevOps Permissions
@@ -164,11 +164,11 @@ One deliberate and explicitly documented limitation sits inside this design: ver
 
 Rather than a single pipeline credential with broad standing permissions, the design specifies three distinct service accounts, each with a narrower intended purpose:
 
-| Service account | Purpose | Intended permission |
-|---|---|---|
-| Plan identity | Runs `terraform plan` on every pull request | Read-only access to the dev project, plus read access to the Terraform state bucket |
-| Apply identity | Applies merged changes to dev IAM | A custom role that explicitly denies modifying its own user or group, scoped to the dev project only |
-| State identity | Manages the Terraform state bucket lifecycle | Read/write access limited to the one state-bucket prefix in use |
+| Service account | Purpose                                      | Intended permission                                                                                  |
+| --------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Plan identity   | Runs `terraform plan` on every pull request  | Read-only access to the dev project, plus read access to the Terraform state bucket                  |
+| Apply identity  | Applies merged changes to dev IAM            | A custom role that explicitly denies modifying its own user or group, scoped to the dev project only |
+| State identity  | Manages the Terraform state bucket lifecycle | Read/write access limited to the one state-bucket prefix in use                                      |
 
 A trade-off in this model is documented rather than hidden: the platform's existing convention places every pipeline service account for an environment into a single shared group, because role bindings in this provider attach to groups rather than individual users. That means, in practice, separation between the three identities is enforced by pipeline configuration and code review rather than by the platform itself. The design records this explicitly as an accepted trade-off and pairs it with compensating controls: one Azure DevOps variable group per pipeline stage (never two credentials reachable from the same job), an environment-gated approval check in front of the apply identity's credentials, a lint rule that fails the pipeline if the apply credential is ever wired into a non-apply stage, and a defined credential rotation cadence.
 
@@ -180,19 +180,14 @@ The read-only compute policy is a representative example of the least-privilege 
 
 ```json
 {
-    "Version": "1.1",
-    "Depends": [],
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ecs:*:get*",
-                "ecs:*:list*",
-                "evs:*:get*",
-                "evs:*:list*"
-            ]
-        }
-    ]
+  "Version": "1.1",
+  "Depends": [],
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["ecs:*:get*", "ecs:*:list*", "evs:*:get*", "evs:*:list*"]
+    }
+  ]
 }
 ```
 
@@ -234,14 +229,14 @@ The most distinctive piece of this architecture is the recognition that removing
 
 The migration proceeds through six phases, moving from detection to enforcement, one resource class at a time:
 
-| Phase | Goal | Exit criteria |
-|---|---|---|
-| Observe | Establish what currently happens in the console, by identity and resource class | A signed-off inventory with a named owner for every recurring console workflow |
-| Substitute | Provide a pipeline or pull-request equivalent for every recurring console workflow | Zero pilot users requesting console write in that resource class for a full week |
-| Detect | Make drift detection loud and accurate, in report-only mode, with no permission changes yet | Drift alerts are actionable and answered within an agreed response time |
-| Restrict | Physically block console write for a resource class, once its pipeline equivalent is proven | Zero successful console writes in that class for two consecutive weeks |
-| IAM self-bootstrap | Handle the identity resource class last, since the pipeline itself manages identity | A quarterly break-glass dry run succeeds |
-| Maintain | Ongoing quarterly review of console-write attempts and break-glass testing | Sustained zero non-pipeline console writes |
+| Phase              | Goal                                                                                        | Exit criteria                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Observe            | Establish what currently happens in the console, by identity and resource class             | A signed-off inventory with a named owner for every recurring console workflow   |
+| Substitute         | Provide a pipeline or pull-request equivalent for every recurring console workflow          | Zero pilot users requesting console write in that resource class for a full week |
+| Detect             | Make drift detection loud and accurate, in report-only mode, with no permission changes yet | Drift alerts are actionable and answered within an agreed response time          |
+| Restrict           | Physically block console write for a resource class, once its pipeline equivalent is proven | Zero successful console writes in that class for two consecutive weeks           |
+| IAM self-bootstrap | Handle the identity resource class last, since the pipeline itself manages identity         | A quarterly break-glass dry run succeeds                                         |
+| Maintain           | Ongoing quarterly review of console-write attempts and break-glass testing                  | Sustained zero non-pipeline console writes                                       |
 
 Resource classes are deliberately restricted in a specific, least-risk-first order — object storage first, then compute, then networking, then the managed database layer, with identity itself handled last and separately, precisely because the pipeline that would need to fix a broken identity configuration is itself governed by that same identity configuration. A single named break-glass account, excluded from pipeline management for exactly this reason, is preserved throughout as the documented recovery path if both the pipeline and the primary access model fail simultaneously.
 
@@ -270,29 +265,29 @@ This project's core subject matter is IAM design, so the permission model is des
 
 ## Design Decisions and Highlights
 
-| Decision | Alternatives Considered | Rationale |
-|---|---|---|
-| Two independently governed Terraform stacks (HCS IAM and Azure DevOps permissions) | A single combined stack | A broken apply in one stack must never be able to lock an operator out of the pipeline needed to fix the other |
-| Three pipeline service accounts (plan, apply, state) | A single shared pipeline credential | Separates read-only, write, and state-management concerns, even though the platform's shared-group convention means the separation is pipeline-enforced rather than platform-enforced — an accepted, documented trade-off with named compensating controls |
-| Explicit self-modification deny rule on the apply identity | Trusting scope restriction alone to prevent self-escalation | A scope restriction can be misconfigured; an explicit deny evaluated before any allow is a stronger, defence-in-depth guarantee against the pipeline escalating its own access |
-| Plan-artifact pattern reused from the companion infrastructure pipeline | Re-planning at apply time | Guarantees the reviewed plan is the applied plan, consistent with the same integrity guarantee already adopted for infrastructure changes elsewhere in this platform |
-| Built-in roles required by default; custom roles need a documented gap analysis | Allowing custom roles freely where built-in roles seem close enough | Prevents the single most common source of privilege creep: unreviewed, bespoke permission sets that accumulate silently over time |
-| No-clickops migration kept as a separate document from the RBAC pipeline design | Combining both into a single design document | Console-write elimination is a change-management and personnel-risk problem, not a permissions problem, and deserves its own phased, resource-class-scoped rollout rather than being rushed alongside the pipeline's initial build |
-| Resource-class-by-resource-class restriction order (storage, then compute, then network, then data, then identity last) | Restricting all resource classes simultaneously | Contains the blast radius of a sequencing mistake to a single resource class, and defers the highest-risk class (identity) until the pipeline governing it has already proven itself on lower-risk classes |
-| Identity provider federation explicitly documented as a permanent, not temporary, click-ops gap | Treating it as a "to be automated later" item | Verified directly against the provider's actual resource coverage; documenting it as permanent (with named owners and audit logging) is more honest and more actionable than an open item that never gets prioritised |
-| A single named, pipeline-excluded break-glass account | Making break-glass another pipeline-managed identity | If the pipeline itself is broken, a break-glass account that the pipeline also manages is not a recovery path — it is the same single point of failure restated |
+| Decision                                                                                                                | Alternatives Considered                                             | Rationale                                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Two independently governed Terraform stacks (HCS IAM and Azure DevOps permissions)                                      | A single combined stack                                             | A broken apply in one stack must never be able to lock an operator out of the pipeline needed to fix the other                                                                                                                                             |
+| Three pipeline service accounts (plan, apply, state)                                                                    | A single shared pipeline credential                                 | Separates read-only, write, and state-management concerns, even though the platform's shared-group convention means the separation is pipeline-enforced rather than platform-enforced — an accepted, documented trade-off with named compensating controls |
+| Explicit self-modification deny rule on the apply identity                                                              | Trusting scope restriction alone to prevent self-escalation         | A scope restriction can be misconfigured; an explicit deny evaluated before any allow is a stronger, defence-in-depth guarantee against the pipeline escalating its own access                                                                             |
+| Plan-artifact pattern reused from the companion infrastructure pipeline                                                 | Re-planning at apply time                                           | Guarantees the reviewed plan is the applied plan, consistent with the same integrity guarantee already adopted for infrastructure changes elsewhere in this platform                                                                                       |
+| Built-in roles required by default; custom roles need a documented gap analysis                                         | Allowing custom roles freely where built-in roles seem close enough | Prevents the single most common source of privilege creep: unreviewed, bespoke permission sets that accumulate silently over time                                                                                                                          |
+| No-clickops migration kept as a separate document from the RBAC pipeline design                                         | Combining both into a single design document                        | Console-write elimination is a change-management and personnel-risk problem, not a permissions problem, and deserves its own phased, resource-class-scoped rollout rather than being rushed alongside the pipeline's initial build                         |
+| Resource-class-by-resource-class restriction order (storage, then compute, then network, then data, then identity last) | Restricting all resource classes simultaneously                     | Contains the blast radius of a sequencing mistake to a single resource class, and defers the highest-risk class (identity) until the pipeline governing it has already proven itself on lower-risk classes                                                 |
+| Identity provider federation explicitly documented as a permanent, not temporary, click-ops gap                         | Treating it as a "to be automated later" item                       | Verified directly against the provider's actual resource coverage; documenting it as permanent (with named owners and audit logging) is more honest and more actionable than an open item that never gets prioritised                                      |
+| A single named, pipeline-excluded break-glass account                                                                   | Making break-glass another pipeline-managed identity                | If the pipeline itself is broken, a break-glass account that the pipeline also manages is not a recovery path — it is the same single point of failure restated                                                                                            |
 
 ## Errors Encountered and Resolved
 
 This project is architecture and design work validated primarily through provider-capability checks and structured review rather than incident response, so the entries below reflect assumptions corrected during design rather than production failures:
 
-| Issue | Root Cause | Resolution |
-|---|---|---|
-| Early drafts assumed the HCS provider would offer AWS-style workload identity federation for pipeline credentials | The platform's actual Terraform provider capabilities were not verified before that assumption was written into the design | Verified directly against the provider; recorded explicitly that the platform issues long-lived access-key credentials regardless of any elevation pattern layered on top, and required a defined rotation cadence and audit logging as compensating controls instead |
-| Early drafts assumed a tenant-wide deny policy, equivalent to a cloud-provider service control policy, could enforce "no human can write to IAM" centrally | No such resource exists in the platform's Terraform provider | Substituted persona-level custom roles combined with drift detection as the enforcement mechanism, and recorded the absence of a top-down deny capability as an explicit design constraint rather than a temporary gap |
-| Early drafts assumed identity-provider federation configuration would eventually be manageable as Terraform | Verification against the provider showed no such resource exists, and this is a platform limitation rather than a missing feature likely to ship soon | Reclassified as a permanent click-ops gap with named owners and audit-log monitoring, rather than an open item that implicitly signals it will be automated later |
-| A design draft proposed stripping console write access from every resource class in a single coordinated change | This would remove the only working access path for any workflow that did not yet have a proven pipeline equivalent, with high risk of locking out on-call engineers mid-incident | Replaced with the phased, resource-class-by-resource-class migration in the no-clickops strategy, with an explicit rule that a class does not progress to restriction until pilot users actively prefer the pipeline path over the console |
-| An early version of the pipeline identity model proposed a single shared credential for plan, apply and state operations | This offered no separation of duties and meant a single leaked credential carried the full combined permission set | Split into three distinct service accounts with narrower intended scopes, and where the platform's existing group convention still forces some permission sharing, documented that trade-off explicitly with named compensating controls rather than leaving it implicit |
+| Issue                                                                                                                                                      | Root Cause                                                                                                                                                                       | Resolution                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Early drafts assumed the HCS provider would offer AWS-style workload identity federation for pipeline credentials                                          | The platform's actual Terraform provider capabilities were not verified before that assumption was written into the design                                                       | Verified directly against the provider; recorded explicitly that the platform issues long-lived access-key credentials regardless of any elevation pattern layered on top, and required a defined rotation cadence and audit logging as compensating controls instead    |
+| Early drafts assumed a tenant-wide deny policy, equivalent to a cloud-provider service control policy, could enforce "no human can write to IAM" centrally | No such resource exists in the platform's Terraform provider                                                                                                                     | Substituted persona-level custom roles combined with drift detection as the enforcement mechanism, and recorded the absence of a top-down deny capability as an explicit design constraint rather than a temporary gap                                                   |
+| Early drafts assumed identity-provider federation configuration would eventually be manageable as Terraform                                                | Verification against the provider showed no such resource exists, and this is a platform limitation rather than a missing feature likely to ship soon                            | Reclassified as a permanent click-ops gap with named owners and audit-log monitoring, rather than an open item that implicitly signals it will be automated later                                                                                                        |
+| A design draft proposed stripping console write access from every resource class in a single coordinated change                                            | This would remove the only working access path for any workflow that did not yet have a proven pipeline equivalent, with high risk of locking out on-call engineers mid-incident | Replaced with the phased, resource-class-by-resource-class migration in the no-clickops strategy, with an explicit rule that a class does not progress to restriction until pilot users actively prefer the pipeline path over the console                               |
+| An early version of the pipeline identity model proposed a single shared credential for plan, apply and state operations                                   | This offered no separation of duties and meant a single leaked credential carried the full combined permission set                                                               | Split into three distinct service accounts with narrower intended scopes, and where the platform's existing group convention still forces some permission sharing, documented that trade-off explicitly with named compensating controls rather than leaving it implicit |
 
 ## Skills Demonstrated
 
